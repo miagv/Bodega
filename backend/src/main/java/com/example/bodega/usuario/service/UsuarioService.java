@@ -1,0 +1,10 @@
+package com.example.bodega.usuario.service;
+import com.example.bodega.common.exception.*; import com.example.bodega.usuario.dto.*; import com.example.bodega.usuario.entity.Usuario; import com.example.bodega.usuario.mapper.UsuarioMapper; import com.example.bodega.usuario.repository.UsuarioRepository;
+import lombok.RequiredArgsConstructor; import org.springframework.security.crypto.password.PasswordEncoder; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional; import java.util.List;
+@Service @RequiredArgsConstructor @Transactional(readOnly=true)
+public class UsuarioService { private final UsuarioRepository repository; private final PasswordEncoder encoder;
+    public List<UsuarioResponse> listar(){return repository.findAll().stream().map(UsuarioMapper::toResponse).toList();} public UsuarioResponse obtener(Long id){return UsuarioMapper.toResponse(entity(id));}
+    @Transactional public UsuarioResponse crear(UsuarioRequest r){if(repository.existsByUsername(r.username().trim()))throw new ConflictException("El nombre de usuario ya existe.");Usuario u=new Usuario();apply(u,r);return UsuarioMapper.toResponse(repository.save(u));}
+    @Transactional public UsuarioResponse actualizar(Long id,UsuarioRequest r){Usuario u=entity(id);if(!u.getUsername().equals(r.username().trim())&&repository.existsByUsername(r.username().trim()))throw new ConflictException("El nombre de usuario ya existe.");apply(u,r);return UsuarioMapper.toResponse(u);}
+    @Transactional public void desactivar(Long id){entity(id).setActivo(false);} @Transactional public UsuarioResponse cambiarEstado(Long id,boolean activo){Usuario u=entity(id);u.setActivo(activo);return UsuarioMapper.toResponse(u);} private Usuario entity(Long id){return repository.findById(id).orElseThrow(()->new NotFoundException("Usuario no encontrado."));} private void apply(Usuario u,UsuarioRequest r){u.setUsername(r.username().trim());u.setNombre(r.nombre().trim());u.setPasswordHash(encoder.encode(r.password()));u.setRol(r.rol());u.setActivo(true);}
+}

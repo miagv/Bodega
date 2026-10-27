@@ -1,0 +1,5 @@
+import { AlertCircle, CheckCircle2, LoaderCircle, X } from 'lucide-react'
+export function Notice({ notice, clear }) { if (!notice) return null; const Icon = notice.type === 'error' ? AlertCircle : CheckCircle2; return <div className={`notice ${notice.type}`} role="status"><Icon size={18} />{notice.text}<button onClick={clear} aria-label="Cerrar mensaje"><X size={16} /></button></div> }
+export function Loading() { return <div className="loading"><LoaderCircle className="spin" /> Cargando datos...</div> }
+export function Empty({ text = 'No hay datos para mostrar.' }) { return <div className="empty">{text}</div> }
+export function Confirm({ text, onConfirm, onClose }) { return <div className="dialog-backdrop" role="presentation"><section className="dialog" role="dialog" aria-modal="true"><h3>Confirmar accion</h3><p>{text}</p><div className="actions"><button className="button secondary" onClick={onClose}>Cancelar</button><button className="button danger" onClick={onConfirm}>Confirmar</button></div></section></div> }

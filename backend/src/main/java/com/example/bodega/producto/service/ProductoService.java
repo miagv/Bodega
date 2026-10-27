@@ -1,0 +1,17 @@
+package com.example.bodega.producto.service;
+import com.example.bodega.categoria.entity.Categoria; import com.example.bodega.categoria.repository.CategoriaRepository; import com.example.bodega.common.exception.*; import com.example.bodega.inventario.enums.TipoMovimiento; import com.example.bodega.inventario.service.InventarioService; import com.example.bodega.producto.dto.*; import com.example.bodega.producto.entity.Producto; import com.example.bodega.producto.mapper.ProductoMapper; import com.example.bodega.producto.repository.ProductoRepository;
+import lombok.RequiredArgsConstructor; import org.springframework.data.domain.*; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
+@Service @RequiredArgsConstructor @Transactional(readOnly=true)
+public class ProductoService {
+    private final ProductoRepository productos; private final CategoriaRepository categorias; private final InventarioService inventario;
+    public Page<ProductoResponse> listar(String nombre,Long categoriaId,Boolean activo,Pageable pageable){return productos.search(blankToNull(nombre),categoriaId,activo,pageable).map(ProductoMapper::toResponse);}
+    public ProductoResponse obtener(Long id){return ProductoMapper.toResponse(producto(id));}
+    public ProductoResponse porCodigo(String codigo){return ProductoMapper.toResponse(productos.findByCodigoBarras(codigo).orElseThrow(() -> new NotFoundException("Producto no encontrado.")));}
+    @Transactional public ProductoResponse crear(ProductoRequest r,Long usuarioId){Producto p=new Producto(); apply(p,r,true); p=productos.save(p); int inicial=r.stockInicial()==null?0:r.stockInicial(); if(inicial>0) inventario.apply(p,TipoMovimiento.ENTRADA,inicial,true,"Stock inicial",inventario.usuario(usuarioId),null); return ProductoMapper.toResponse(p);}
+    @Transactional public ProductoResponse actualizar(Long id,ProductoRequest r){Producto p=producto(id); apply(p,r,false); return ProductoMapper.toResponse(p);}
+    @Transactional public void desactivar(Long id){producto(id).setActivo(false);}
+    @Transactional public ProductoResponse cambiarEstado(Long id, boolean activo){Producto p=producto(id);p.setActivo(activo);return ProductoMapper.toResponse(p);}
+    private Producto producto(Long id){return productos.findById(id).orElseThrow(() -> new NotFoundException("Producto no encontrado."));}
+    private void apply(Producto p,ProductoRequest r,boolean nuevo){String codigo=blankToNull(r.codigoBarras()); if(codigo!=null && (!codigo.equals(p.getCodigoBarras())) && productos.existsByCodigoBarras(codigo)) throw new ConflictException("El codigo de barras ya esta registrado."); if(r.precioVenta().compareTo(r.precioCompra())<0) throw new BusinessException("El precio de venta no puede ser menor al precio de compra."); Categoria c=categorias.findById(r.categoriaId()).orElseThrow(() -> new NotFoundException("Categoria no encontrada.")); if(!c.isActiva()) throw new BusinessException("La categoria esta inactiva."); p.setNombre(r.nombre().trim());p.setDescripcion(r.descripcion());p.setCodigoBarras(codigo);p.setCategoria(c);p.setPrecioCompra(r.precioCompra());p.setPrecioVenta(r.precioVenta());p.setStockMinimo(r.stockMinimo());p.setUnidadMedida(r.unidadMedida()); if(nuevo){p.setStockActual(0);p.setActivo(true);} }
+    private String blankToNull(String value){return value==null||value.isBlank()?null:value.trim();}
+}
